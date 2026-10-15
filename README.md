@@ -1,23 +1,28 @@
-# Rehab
+# RE.HAB
 
-Rehab è un progetto in fase di sviluppo.
+Repository condiviso ufficiale per lo sviluppo dell'MVP RE.HAB.
 
-## Descrizione
+La prima versione contiene una demo navigabile del percorso post-operatorio del menisco. I dati, il piano e i feedback sono fittizi e vengono salvati esclusivamente nel `localStorage` del browser.
 
-Questo repository raccoglie il codice sorgente, la documentazione e le risorse necessarie al progetto.
+## Avvio locale
 
-## Installazione
+```bash
+npm install
+npm run dev
+```
 
-Clona il repository e segui le istruzioni specifiche dell'ambiente di sviluppo per installare le dipendenze richieste.
+Apri `http://localhost:3000` oppure vai direttamente a `/demo/menisco`.
 
-## Utilizzo
+## Verifiche
 
-Le modalità di configurazione e utilizzo verranno documentate con l'evoluzione del progetto.
+```bash
+npm run lint
+npm run typecheck
+npm run build
+```
 
-## Contributi
+## Perimetro
 
-Segnalazioni, suggerimenti e contributi sono benvenuti. Apri una issue o una pull request per proporre modifiche.
+La demo copre il passaggio fra vista fisioterapista e vista paziente: quadro clinico, piano dimostrativo, pubblicazione, calendario, sessione, feedback e consultazione dello storico. Non include ancora autenticazione, backend o dati clinici reali.
 
-## Licenza
-
-Le informazioni sulla licenza saranno aggiunte in seguito.
+Vedi [docs/demo-mvp-menisco.md](docs/demo-mvp-menisco.md) per lo scenario dimostrativo e i criteri di verifica.
