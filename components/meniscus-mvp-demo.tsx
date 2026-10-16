@@ -302,13 +302,13 @@ export function MeniscusMvpDemo() {
     }
   }
 
-  function publishPlanRevision() {
-    if (!approvalChecked || state.plan.status !== "draft") return;
-
+  function publishPlan(planToPublish: MeniscusPlan) {
+    if (!approvalChecked) return;
     const nextPlan: MeniscusPlan = {
-      ...state.plan,
+      ...planToPublish,
       version: state.publishedPlan ? state.publishedPlan.version + 1 : 1,
       status: "published",
+      createdAt: planToPublish.createdAt || new Date().toISOString(),
       approvedBy: "Dott.ssa Giulia Bianchi",
       publishedAt: new Date().toISOString(),
       effectiveFrom: "2026-10-19"
@@ -333,8 +333,18 @@ export function MeniscusMvpDemo() {
     }));
     setPlanDraft(nextPlan);
     setExerciseFeedbacks(buildExerciseFeedbacks(nextPlan));
+    setPlanEditorMode("closed");
     setApprovalChecked(false);
     setMessage(`Piano v${nextPlan.version} approvato e pubblicato al paziente.`);
+  }
+
+  function publishPlanRevision() {
+    if (state.plan.status !== "draft") return;
+    publishPlan(state.plan);
+  }
+
+  function publishPlanFromCreation() {
+    publishPlan(planDraft);
   }
 
   function updateExerciseFeedback(index: number, patch: Partial<MeniscusExerciseFeedback>) {
@@ -450,9 +460,12 @@ export function MeniscusMvpDemo() {
             <div className="demo-main">
               {planEditorMode === "create" ? (
                 <PlanCreationDialog
+                  approvalChecked={approvalChecked}
                   draft={planDraft}
                   onCancel={cancelPlanEdit}
+                  onApprovalChange={setApprovalChecked}
                   onExerciseChange={updatePlanExercise}
+                  onPublish={publishPlanFromCreation}
                   onSave={savePlanDraft}
                   onUpdate={setPlanDraft}
                 />
@@ -721,15 +734,21 @@ function WeeklyExercisesPanel({
 }
 
 function PlanCreationDialog({
+  approvalChecked,
   draft,
   onCancel,
+  onApprovalChange,
   onExerciseChange,
+  onPublish,
   onSave,
   onUpdate
 }: {
+  approvalChecked: boolean;
   draft: MeniscusPlan;
   onCancel: () => void;
+  onApprovalChange: (checked: boolean) => void;
   onExerciseChange: (index: number, field: "sets" | "reps" | "instructions", value: string) => void;
+  onPublish: () => void;
   onSave: () => void;
   onUpdate: (plan: MeniscusPlan) => void;
 }) {
@@ -763,7 +782,10 @@ function PlanCreationDialog({
             </article>
           ))}
         </div>
-        <div className="editor-actions"><button className="button ghost" onClick={onCancel} type="button">Annulla</button><button className="button primary" onClick={onSave} type="button"><Save size={17} /> Salva bozza</button></div>
+        <div className="approval-box">
+          <label className="check-row"><input checked={approvalChecked} onChange={(event) => onApprovalChange(event.target.checked)} type="checkbox" /><span><strong>Ho verificato quadro clinico, restrizioni ed esercizi</strong><br /><span className="muted">Con questa approvazione il piano viene pubblicato e inizia il percorso RE.HAB del paziente.</span></span></label>
+        </div>
+        <div className="editor-actions"><button className="button ghost" onClick={onCancel} type="button">Annulla</button><button className="button" onClick={onSave} type="button"><Save size={17} /> Salva bozza</button><button className="button primary" disabled={!approvalChecked} onClick={onPublish} type="button"><CheckCircle2 size={18} /> Approva e pubblica</button></div>
       </section>
     </dialog>
   );

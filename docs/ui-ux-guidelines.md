@@ -35,9 +35,10 @@ Ogni contenuto modificabile deve rendere visibile il proprio stato:
 1. In assenza di piano, mostrare `Crea piano` nelle sezioni pertinenti.
 2. La creazione apre un popup modale dedicato con informazioni del piano ed esercizi della prima settimana, mantenendo visibile il contesto sottostante.
 3. I valori suggeriti o dimostrativi possono essere precompilati, ma devono restare modificabili e dichiarati.
-4. `Salva bozza` porta alle viste read-only senza rendere il piano visibile al paziente.
-5. `Approva e pubblica` richiede una conferma esplicita di avvenuta verifica clinica.
-6. La pubblicazione genera una versione e una voce nel log delle modifiche.
+4. Nel popup di creazione sono sempre disponibili sia `Salva bozza` sia `Approva e pubblica`, così il professionista può scegliere se interrompere il flusso o completarlo direttamente.
+5. `Salva bozza` porta alle viste read-only senza rendere il piano visibile al paziente.
+6. `Approva e pubblica` è l'azione primaria e richiede un check esplicito di avvenuta verifica clinica; resta disabilitata finché il check non è selezionato.
+7. La pubblicazione genera una versione e una voce nel log delle modifiche.
 
 ## Gerarchia delle azioni
 
@@ -45,6 +46,7 @@ Ogni contenuto modificabile deve rendere visibile il proprio stato:
 - **Secondaria**: fondo bianco e bordo neutro, per esempio `Modifica`.
 - **Terziaria**: stile ghost, per esempio `Annulla`.
 - Le azioni di salvataggio negli editor lunghi restano visibili in una barra inferiore sticky.
+- Quando `Salva bozza` e `Approva e pubblica` convivono, la pubblicazione è primaria e il salvataggio della bozza è secondario.
 - Le azioni distruttive richiedono stile e conferma dedicati; non riutilizzare il colore primario.
 
 ## Popup e azioni contestuali

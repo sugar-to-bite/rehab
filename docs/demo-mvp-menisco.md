@@ -13,9 +13,9 @@ La demo utilizza un paziente, un piano e contenuti clinici interamente fittizi. 
 1. Aprire la vista fisioterapista.
 2. Consultare o modificare il quadro clinico strutturato.
 3. Aprire `Info piano` o `Esercizi settimana` e avviare `Crea piano`.
-4. Rivedere i dati precompilati e salvare la bozza.
-5. Consultare le due sezioni in modalità read-only ed eventualmente modificarle tramite l'azione dedicata.
-6. Confermare e pubblicare il piano.
+4. Rivedere i dati precompilati e scegliere se salvare la bozza oppure verificare e pubblicare direttamente il piano.
+5. Se salvato come bozza, consultare le due sezioni in modalità read-only ed eventualmente modificarle tramite l'azione dedicata.
+6. Confermare e pubblicare il piano dalla bozza, se non già pubblicato durante la creazione.
 7. Passare alla vista paziente.
 8. Consultare piano e calendario.
 9. Registrare esito, dolore e difficoltà per ogni esercizio.
