@@ -58,7 +58,7 @@ export type MeniscusPlanExercise = {
 
 export type MeniscusPlan = {
   version: number;
-  status: "draft" | "published";
+  status: "empty" | "draft" | "published";
   phase: string;
   objective: string;
   restrictions: string[];
@@ -101,11 +101,54 @@ export type MeniscusSessionFeedback = {
 export type MeniscusDemoState = {
   clinicalRecord: MeniscusClinicalRecord;
   plan: MeniscusPlan;
+  publishedPlan: MeniscusPlan | null;
   planLog: MeniscusPlanLogEntry[];
   feedbacks: MeniscusSessionFeedback[];
 };
 
-export const MENISCUS_DEMO_STORAGE_KEY = "rehab:meniscus-mvp-demo:v2";
+export const MENISCUS_DEMO_STORAGE_KEY = "rehab:meniscus-mvp-demo:v3";
+
+export const meniscusPlanTemplate: MeniscusPlan = {
+  version: 0,
+  status: "draft",
+  phase: "Fase iniziale protetta — esempio dimostrativo",
+  objective: "Controllare i sintomi e recuperare l'attivazione del quadricipite",
+  restrictions: [
+    "Non superare 90° di flessione",
+    "Mantenere il carico parziale con gli ausili prescritti",
+    "Interrompere e contattare il fisioterapista in caso di dolore acuto"
+  ],
+  exercises: [
+    {
+      id: "mock-quad-set",
+      name: "Contrazione isometrica del quadricipite",
+      sets: 3,
+      reps: 10,
+      restSeconds: 30,
+      instructions: "Mantieni la contrazione per 5 secondi senza sollevare il tallone."
+    },
+    {
+      id: "mock-heel-slide",
+      name: "Scivolamento del tallone assistito",
+      sets: 2,
+      reps: 8,
+      restSeconds: 45,
+      instructions: "Fletti lentamente senza superare il limite indicato dal fisioterapista."
+    },
+    {
+      id: "mock-ankle-pump",
+      name: "Mobilizzazione della caviglia",
+      sets: 2,
+      reps: 20,
+      restSeconds: 20,
+      instructions: "Alterna punta e tallone mantenendo la gamba rilassata."
+    }
+  ],
+  createdAt: "2026-10-15T09:00:00+02:00",
+  publishedAt: null,
+  effectiveFrom: "2026-10-19",
+  approvedBy: ""
+};
 
 export const initialMeniscusDemoState: MeniscusDemoState = {
   clinicalRecord: {
@@ -158,45 +201,17 @@ export const initialMeniscusDemoState: MeniscusDemoState = {
   },
   plan: {
     version: 0,
-    status: "draft",
-    phase: "Fase iniziale protetta — esempio dimostrativo",
-    objective: "Controllare i sintomi e recuperare l'attivazione del quadricipite",
-    restrictions: [
-      "Non superare 90° di flessione",
-      "Mantenere il carico parziale con gli ausili prescritti",
-      "Interrompere e contattare il fisioterapista in caso di dolore acuto"
-    ],
-    exercises: [
-      {
-        id: "mock-quad-set",
-        name: "Contrazione isometrica del quadricipite",
-        sets: 3,
-        reps: 10,
-        restSeconds: 30,
-        instructions: "Mantieni la contrazione per 5 secondi senza sollevare il tallone."
-      },
-      {
-        id: "mock-heel-slide",
-        name: "Scivolamento del tallone assistito",
-        sets: 2,
-        reps: 8,
-        restSeconds: 45,
-        instructions: "Fletti lentamente senza superare il limite indicato dal fisioterapista."
-      },
-      {
-        id: "mock-ankle-pump",
-        name: "Mobilizzazione della caviglia",
-        sets: 2,
-        reps: 20,
-        restSeconds: 20,
-        instructions: "Alterna punta e tallone mantenendo la gamba rilassata."
-      }
-    ],
-    createdAt: "2026-10-15T09:00:00+02:00",
+    status: "empty",
+    phase: "",
+    objective: "",
+    restrictions: [],
+    exercises: [],
+    createdAt: "",
     publishedAt: null,
-    effectiveFrom: "2026-10-19",
+    effectiveFrom: "",
     approvedBy: ""
   },
+  publishedPlan: null,
   planLog: [
     {
       id: "mock-log-clinical",
@@ -204,13 +219,6 @@ export const initialMeniscusDemoState: MeniscusDemoState = {
       author: "Dott.ssa Giulia Bianchi",
       title: "Quadro clinico registrato",
       detail: "Completate le informazioni iniziali e le sei sezioni della valutazione menisco."
-    },
-    {
-      id: "mock-log-plan-draft",
-      occurredAt: "2026-10-15T09:00:00+02:00",
-      author: "Dott.ssa Giulia Bianchi",
-      title: "Bozza del primo piano creata",
-      detail: "Piano mock preparato manualmente per l'avvio del percorso RE.HAB."
     }
   ],
   feedbacks: []

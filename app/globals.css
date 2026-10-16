@@ -222,6 +222,11 @@ p {
   color: var(--teal-dark);
 }
 
+.pill.blue {
+  background: #e6f0ff;
+  color: #245a9b;
+}
+
 .pill.amber {
   background: #fff2d1;
   color: var(--amber);
@@ -296,6 +301,21 @@ p {
   padding: 36px 20px;
   color: var(--muted);
   text-align: center;
+}
+
+.empty-state .button {
+  margin-top: 10px;
+}
+
+.empty-state-icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 4px;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--mint);
+  color: var(--teal-dark);
 }
 
 .progress-bar {
@@ -505,6 +525,85 @@ p {
 
 .plan-input-summary strong {
   color: var(--ink);
+}
+
+.plan-read-grid,
+.exercise-read-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.read-value {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  padding: 14px;
+}
+
+.read-value.wide {
+  grid-column: 1 / -1;
+}
+
+.read-value > span {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 850;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.read-value p,
+.read-value ul {
+  margin: 0;
+}
+
+.plan-creation-editor {
+  gap: 20px;
+}
+
+.editor-section-heading {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+}
+
+.editor-section-heading > span {
+  display: grid;
+  flex: 0 0 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--teal);
+  color: #fff;
+  font-weight: 900;
+}
+
+.editor-section-heading h3,
+.editor-section-heading p {
+  margin: 0;
+}
+
+.editor-section-heading p {
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  position: sticky;
+  bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  padding: 12px;
+  box-shadow: 0 8px 24px rgba(20, 54, 58, 0.1);
 }
 
 .progress-panel,
@@ -722,8 +821,14 @@ p {
   .demo-workspace,
   .clinical-field-grid,
   .dosage-grid,
-  .plan-input-summary {
+  .plan-input-summary,
+  .plan-read-grid,
+  .exercise-read-grid {
     grid-template-columns: 1fr;
+  }
+
+  .read-value.wide {
+    grid-column: auto;
   }
 
   .hero {

@@ -9,6 +9,8 @@ import {
   Info,
   ListChecks,
   Milestone,
+  Pencil,
+  Plus,
   RotateCcw,
   Save,
   ShieldCheck,
@@ -20,6 +22,7 @@ import { useEffect, useState } from "react";
 import {
   MENISCUS_DEMO_STORAGE_KEY,
   initialMeniscusDemoState,
+  meniscusPlanTemplate,
   mockMeniscusMilestones,
   mockWeek,
   type MeniscusClinicalRecord,
@@ -31,6 +34,7 @@ import {
 type RoleView = "therapist" | "patient";
 type TherapistSection = "clinical" | "planInfo" | "weekly" | "progress" | "history" | "feedback";
 type PatientSection = "today" | "plan" | "calendar";
+type PlanEditorMode = "closed" | "create" | "planInfo" | "weekly";
 
 const clinicalSections: Array<{
   key: keyof Omit<MeniscusClinicalRecord, "assessedAt" | "assessedBy">;
@@ -115,6 +119,10 @@ function cloneInitialState() {
   return JSON.parse(JSON.stringify(initialMeniscusDemoState)) as MeniscusDemoState;
 }
 
+function clonePlan(plan: MeniscusPlan) {
+  return JSON.parse(JSON.stringify(plan)) as MeniscusPlan;
+}
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("it-IT", {
     day: "2-digit",
@@ -143,6 +151,7 @@ export function MeniscusMvpDemo() {
   const [clinicalDraft, setClinicalDraft] = useState<MeniscusClinicalRecord>(state.clinicalRecord);
   const [clinicalEditing, setClinicalEditing] = useState(false);
   const [planDraft, setPlanDraft] = useState<MeniscusPlan>(state.plan);
+  const [planEditorMode, setPlanEditorMode] = useState<PlanEditorMode>("closed");
   const [approvalChecked, setApprovalChecked] = useState(false);
   const [exerciseFeedbacks, setExerciseFeedbacks] = useState<MeniscusExerciseFeedback[]>(
     () => buildExerciseFeedbacks(state.plan)
@@ -164,7 +173,7 @@ export function MeniscusMvpDemo() {
         setState(next);
         setClinicalDraft(next.clinicalRecord);
         setPlanDraft(next.plan);
-        setExerciseFeedbacks(buildExerciseFeedbacks(next.plan));
+        setExerciseFeedbacks(next.publishedPlan ? buildExerciseFeedbacks(next.publishedPlan) : []);
       } catch {
         window.localStorage.removeItem(MENISCUS_DEMO_STORAGE_KEY);
       }
@@ -182,7 +191,10 @@ export function MeniscusMvpDemo() {
   const hasIncompleteSkippedReason = exerciseFeedbacks.some(
     (feedback) => feedback.outcome === "skipped" && feedback.reason.trim() === ""
   );
-  const publishedSummary = `${state.plan.exercises.length} esercizi · piano v${state.plan.version}`;
+  const patientPlan = state.publishedPlan;
+  const publishedSummary = patientPlan
+    ? `${patientPlan.exercises.length} esercizi · piano v${patientPlan.version}`
+    : "";
 
   function saveClinicalRecord() {
     const nextRecord = {
@@ -230,12 +242,61 @@ export function MeniscusMvpDemo() {
     }));
   }
 
-  function publishPlanRevision() {
-    if (!approvalChecked || state.plan.status === "published") return;
+  function startPlanCreation() {
+    setPlanDraft(clonePlan(meniscusPlanTemplate));
+    setPlanEditorMode("create");
+    setApprovalChecked(false);
+  }
 
+  function startPlanEdit(mode: "planInfo" | "weekly") {
+    setPlanDraft(clonePlan(state.plan));
+    setPlanEditorMode(mode);
+    setApprovalChecked(false);
+  }
+
+  function cancelPlanEdit() {
+    setPlanDraft(clonePlan(state.plan));
+    setPlanEditorMode("closed");
+  }
+
+  function savePlanDraft() {
+    const creating = state.plan.status === "empty";
     const nextPlan: MeniscusPlan = {
       ...planDraft,
-      version: 1,
+      status: "draft",
+      createdAt: planDraft.createdAt || new Date().toISOString(),
+      publishedAt: null,
+      approvedBy: ""
+    };
+
+    setState((current) => ({
+      ...current,
+      plan: nextPlan,
+      planLog: [
+        {
+          id: `mock-log-plan-${Date.now()}`,
+          occurredAt: new Date().toISOString(),
+          author: "Dott.ssa Giulia Bianchi",
+          title: creating ? "Bozza del primo piano creata" : "Bozza del piano aggiornata",
+          detail: creating
+            ? "Salvate le informazioni del piano e gli esercizi della prima settimana."
+            : "Salvate modifiche manuali al piano senza pubblicarle al paziente."
+        },
+        ...current.planLog
+      ]
+    }));
+    setPlanDraft(nextPlan);
+    setPlanEditorMode("closed");
+    setApprovalChecked(false);
+    setMessage("Bozza salvata. Il piano non è ancora visibile al paziente.");
+  }
+
+  function publishPlanRevision() {
+    if (!approvalChecked || state.plan.status !== "draft") return;
+
+    const nextPlan: MeniscusPlan = {
+      ...state.plan,
+      version: state.publishedPlan ? state.publishedPlan.version + 1 : 1,
       status: "published",
       approvedBy: "Dott.ssa Giulia Bianchi",
       publishedAt: new Date().toISOString(),
@@ -245,13 +306,16 @@ export function MeniscusMvpDemo() {
     setState((current) => ({
       ...current,
       plan: nextPlan,
+      publishedPlan: nextPlan,
       planLog: [
         {
           id: `mock-log-publish-${Date.now()}`,
           occurredAt: new Date().toISOString(),
           author: "Dott.ssa Giulia Bianchi",
-          title: "Piano iniziale approvato e pubblicato",
-          detail: "Avviato il percorso RE.HAB con decorrenza 19 ottobre 2026."
+          title: current.publishedPlan ? "Revisione del piano approvata e pubblicata" : "Piano iniziale approvato e pubblicato",
+          detail: current.publishedPlan
+            ? `Pubblicata la versione ${nextPlan.version} del piano.`
+            : "Avviato il percorso RE.HAB con decorrenza 19 ottobre 2026."
         },
         ...current.planLog
       ]
@@ -259,7 +323,7 @@ export function MeniscusMvpDemo() {
     setPlanDraft(nextPlan);
     setExerciseFeedbacks(buildExerciseFeedbacks(nextPlan));
     setApprovalChecked(false);
-    setMessage("Piano iniziale approvato: il percorso RE.HAB è stato avviato.");
+    setMessage(`Piano v${nextPlan.version} approvato e pubblicato al paziente.`);
   }
 
   function updateExerciseFeedback(index: number, patch: Partial<MeniscusExerciseFeedback>) {
@@ -296,7 +360,8 @@ export function MeniscusMvpDemo() {
     setState(next);
     setClinicalDraft(next.clinicalRecord);
     setPlanDraft(next.plan);
-    setExerciseFeedbacks(buildExerciseFeedbacks(next.plan));
+    setExerciseFeedbacks([]);
+    setPlanEditorMode("closed");
     setPainAfter(0);
     setSwelling("same");
     setFatigue(0);
@@ -344,8 +409,8 @@ export function MeniscusMvpDemo() {
               <h2>Marco Rossi</h2>
               <p className="muted">Sutura menisco mediale · ginocchio destro</p>
               <div className="pill-row">
-                <span className={state.plan.status === "published" ? "pill green" : "pill amber"}>
-                  {state.plan.status === "published" ? "Percorso attivo" : "Piano da approvare"}
+                <span className={state.plan.status === "published" ? "pill green" : state.plan.status === "draft" && state.publishedPlan ? "pill blue" : state.plan.status === "draft" ? "pill amber" : "pill"}>
+                  {state.plan.status === "published" ? "Percorso attivo" : state.plan.status === "draft" && state.publishedPlan ? "Revisione in bozza" : state.plan.status === "draft" ? "Bozza non pubblicata" : "Nessun piano"}
                 </span>
                 {state.plan.status === "published" ? <span className="pill">Piano v{state.plan.version}</span> : null}
               </div>
@@ -372,7 +437,16 @@ export function MeniscusMvpDemo() {
             </aside>
 
             <div className="demo-main">
-              {therapistSection === "clinical" ? (
+              {planEditorMode === "create" ? (
+                <PlanCreationEditor
+                  draft={planDraft}
+                  onCancel={cancelPlanEdit}
+                  onExerciseChange={updatePlanExercise}
+                  onSave={savePlanDraft}
+                  onUpdate={setPlanDraft}
+                />
+              ) : null}
+              {planEditorMode !== "create" && therapistSection === "clinical" ? (
                 <ClinicalRecordPanel
                   draft={clinicalDraft}
                   editing={clinicalEditing}
@@ -382,26 +456,38 @@ export function MeniscusMvpDemo() {
                   onSave={saveClinicalRecord}
                 />
               ) : null}
-              {therapistSection === "planInfo" ? (
+              {planEditorMode !== "create" && therapistSection === "planInfo" ? (
                 <PlanInfoPanel
                   approvalChecked={approvalChecked}
                   draft={planDraft}
+                  editing={planEditorMode === "planInfo"}
+                  hasPublishedPlan={Boolean(state.publishedPlan)}
+                  onCancel={cancelPlanEdit}
+                  onCreate={startPlanCreation}
+                  onEdit={() => startPlanEdit("planInfo")}
                   onApprovalChange={setApprovalChecked}
                   onPublish={publishPlanRevision}
+                  onSave={savePlanDraft}
                   onUpdate={setPlanDraft}
-                  publishedPlan={state.plan}
+                  plan={state.plan}
                 />
               ) : null}
-              {therapistSection === "weekly" ? (
+              {planEditorMode !== "create" && therapistSection === "weekly" ? (
                 <WeeklyExercisesPanel
                   draft={planDraft}
+                  editing={planEditorMode === "weekly"}
+                  hasPublishedPlan={Boolean(state.publishedPlan)}
+                  onCancel={cancelPlanEdit}
+                  onCreate={startPlanCreation}
+                  onEdit={() => startPlanEdit("weekly")}
                   onExerciseChange={updatePlanExercise}
-                  published={state.plan.status === "published"}
+                  onSave={savePlanDraft}
+                  plan={state.plan}
                 />
               ) : null}
-              {therapistSection === "progress" ? <ProgressPanel /> : null}
-              {therapistSection === "history" ? <PlanHistoryPanel entries={state.planLog} /> : null}
-              {therapistSection === "feedback" ? (
+              {planEditorMode !== "create" && therapistSection === "progress" ? <ProgressPanel /> : null}
+              {planEditorMode !== "create" && therapistSection === "history" ? <PlanHistoryPanel entries={state.planLog} /> : null}
+              {planEditorMode !== "create" && therapistSection === "feedback" ? (
                 <TherapistFeedbackPanel feedbacks={state.feedbacks} />
               ) : null}
             </div>
@@ -413,8 +499,8 @@ export function MeniscusMvpDemo() {
                 <p className="eyebrow">Ciao Marco</p>
                 <h1>Il tuo recupero</h1>
               </div>
-              <span className={state.plan.status === "published" ? "pill green" : "pill amber"}>
-                {state.plan.status === "published" ? "Piano attivo" : "Piano in preparazione"}
+              <span className={patientPlan ? "pill green" : "pill amber"}>
+                {patientPlan ? "Piano attivo" : "Piano in preparazione"}
               </span>
             </header>
             <nav className="patient-demo-nav" aria-label="App paziente">
@@ -423,7 +509,7 @@ export function MeniscusMvpDemo() {
               <button className={patientSection === "calendar" ? "active" : ""} onClick={() => setPatientSection("calendar")} type="button">Calendario</button>
             </nav>
 
-            {patientSection === "today" && state.plan.status === "published" ? (
+            {patientSection === "today" && patientPlan ? (
               <PatientSession
                 fatigue={fatigue}
                 feedbacks={exerciseFeedbacks}
@@ -436,16 +522,16 @@ export function MeniscusMvpDemo() {
                 onSubmit={submitSessionFeedback}
                 onSwellingChange={setSwelling}
                 painAfter={painAfter}
-                plan={state.plan}
+                plan={patientPlan}
                 swelling={swelling}
               />
             ) : null}
-            {patientSection === "today" && state.plan.status === "draft" ? <PatientWaitingForPlan /> : null}
+            {patientSection === "today" && !patientPlan ? <PatientWaitingForPlan /> : null}
             {patientSection === "plan" ? (
-              <PatientPlan plan={state.plan} publishedSummary={publishedSummary} />
+              patientPlan ? <PatientPlan plan={patientPlan} publishedSummary={publishedSummary} /> : <PatientWaitingForPlan />
             ) : null}
-            {patientSection === "calendar" && state.plan.status === "published" ? <WeekCalendar /> : null}
-            {patientSection === "calendar" && state.plan.status === "draft" ? <PatientWaitingForPlan /> : null}
+            {patientSection === "calendar" && patientPlan ? <WeekCalendar /> : null}
+            {patientSection === "calendar" && !patientPlan ? <PatientWaitingForPlan /> : null}
           </section>
         )}
       </div>
@@ -504,56 +590,107 @@ function ClinicalRecordPanel({
 function PlanInfoPanel({
   approvalChecked,
   draft,
+  editing,
+  hasPublishedPlan,
+  onCancel,
+  onCreate,
+  onEdit,
   onApprovalChange,
   onPublish,
+  onSave,
   onUpdate,
-  publishedPlan
+  plan
 }: {
   approvalChecked: boolean;
   draft: MeniscusPlan;
+  editing: boolean;
+  hasPublishedPlan: boolean;
+  onCancel: () => void;
+  onCreate: () => void;
+  onEdit: () => void;
   onApprovalChange: (checked: boolean) => void;
   onPublish: () => void;
+  onSave: () => void;
   onUpdate: (plan: MeniscusPlan) => void;
-  publishedPlan: MeniscusPlan;
+  plan: MeniscusPlan;
 }) {
-  const published = publishedPlan.status === "published";
+  if (plan.status === "empty") {
+    return <PlanEmptyState description="Crea il primo piano per definire obiettivo, restrizioni ed esercizi della prima settimana." onCreate={onCreate} title="Nessun piano ancora" />;
+  }
+
+  const visiblePlan = editing ? draft : plan;
+  const published = plan.status === "published";
 
   return (
     <section className="panel plan-editor-panel">
       <div className="panel-header">
         <div><p className="eyebrow">Primo piano RE.HAB</p><h2>Informazioni generali</h2></div>
-        <span className={published ? "pill green" : "pill amber"}>{published ? "Piano v1 attivo" : "Bozza da approvare"}</span>
+        {editing ? (
+          <div className="actions compact"><button className="button ghost" onClick={onCancel} type="button">Annulla</button><button className="button primary" onClick={onSave} type="button"><Save size={17} /> Salva bozza</button></div>
+        ) : (
+          <div className="actions compact"><span className={published ? "pill green" : hasPublishedPlan ? "pill blue" : "pill amber"}>{published ? `Piano v${plan.version} attivo` : hasPublishedPlan ? "Revisione in bozza" : "Bozza non pubblicata"}</span><button className="button" onClick={onEdit} type="button"><Pencil size={16} /> Modifica</button></div>
+        )}
       </div>
       <div className="source-note"><strong>Contenuto dimostrativo.</strong> È il primo piano del paziente: viene preparato manualmente e non è generato dalla KB.</div>
-      <div className="field-grid">
-        <div className="field"><label htmlFor="plan-phase">Fase iniziale</label><input disabled={published} id="plan-phase" onChange={(event) => onUpdate({ ...draft, phase: event.target.value })} value={draft.phase} /></div>
-        <div className="field"><label htmlFor="plan-objective">Obiettivo del piano</label><input disabled={published} id="plan-objective" onChange={(event) => onUpdate({ ...draft, objective: event.target.value })} value={draft.objective} /></div>
-        <div className="field wide"><label htmlFor="plan-restrictions">Restrizioni approvate (una per riga)</label><textarea disabled={published} id="plan-restrictions" onChange={(event) => onUpdate({ ...draft, restrictions: event.target.value.split("\n") })} value={draft.restrictions.join("\n")} /></div>
-      </div>
-      {published ? (
-        <div className="form-success"><strong>Piano iniziale pubblicato.</strong> Il paziente può vedere piano, calendario e sessioni.</div>
+      {editing ? (
+        <PlanInfoFields draft={draft} onUpdate={onUpdate} />
       ) : (
-        <div className="approval-box">
-          <label className="check-row"><input checked={approvalChecked} onChange={(event) => onApprovalChange(event.target.checked)} type="checkbox" /><span><strong>Ho verificato quadro clinico, restrizioni ed esercizi</strong><br /><span className="muted">Con questa approvazione inizia il primo percorso RE.HAB del paziente.</span></span></label>
-          <button className="button primary" disabled={!approvalChecked} onClick={onPublish} type="button"><CheckCircle2 size={18} /> Approva e avvia il percorso</button>
+        <div className="plan-read-grid">
+          <div className="read-value"><span>Fase iniziale</span><strong>{visiblePlan.phase}</strong></div>
+          <div className="read-value"><span>Obiettivo del piano</span><strong>{visiblePlan.objective}</strong></div>
+          <div className="read-value wide"><span>Restrizioni approvate</span><ul className="restriction-list">{visiblePlan.restrictions.map((restriction) => <li key={restriction}>{restriction}</li>)}</ul></div>
         </div>
       )}
+      {!editing && published ? (
+        <div className="form-success"><strong>Piano iniziale pubblicato.</strong> Il paziente può vedere piano, calendario e sessioni.</div>
+      ) : null}
+      {!editing && !published ? (
+        <div className="approval-box">
+          <label className="check-row"><input checked={approvalChecked} onChange={(event) => onApprovalChange(event.target.checked)} type="checkbox" /><span><strong>Ho verificato quadro clinico, restrizioni ed esercizi</strong><br /><span className="muted">Con questa approvazione inizia il primo percorso RE.HAB del paziente.</span></span></label>
+          <button className="button primary" disabled={!approvalChecked} onClick={onPublish} type="button"><CheckCircle2 size={18} /> Approva e pubblica</button>
+        </div>
+      ) : null}
     </section>
   );
 }
 
 function WeeklyExercisesPanel({
   draft,
+  editing,
+  hasPublishedPlan,
+  onCancel,
+  onCreate,
+  onEdit,
   onExerciseChange,
-  published
+  onSave,
+  plan
 }: {
   draft: MeniscusPlan;
+  editing: boolean;
+  hasPublishedPlan: boolean;
+  onCancel: () => void;
+  onCreate: () => void;
+  onEdit: () => void;
   onExerciseChange: (index: number, field: "sets" | "reps" | "instructions", value: string) => void;
-  published: boolean;
+  onSave: () => void;
+  plan: MeniscusPlan;
 }) {
+  if (plan.status === "empty") {
+    return <PlanEmptyState description="Crea il piano per aggiungere e configurare gli esercizi della prima settimana." onCreate={onCreate} title="Nessun esercizio programmato" />;
+  }
+
+  const visiblePlan = editing ? draft : plan;
+
   return (
     <section className="panel plan-editor-panel">
-      <div className="panel-header"><div><p className="eyebrow">Settimana 1</p><h2>Esercizi proposti</h2></div><span className={published ? "pill green" : "pill amber"}>{published ? "Approvati" : "Bozza mock"}</span></div>
+      <div className="panel-header">
+        <div><p className="eyebrow">Settimana 1</p><h2>Esercizi proposti</h2></div>
+        {editing ? (
+          <div className="actions compact"><button className="button ghost" onClick={onCancel} type="button">Annulla</button><button className="button primary" onClick={onSave} type="button"><Save size={17} /> Salva bozza</button></div>
+        ) : (
+          <div className="actions compact"><span className={plan.status === "published" ? "pill green" : hasPublishedPlan ? "pill blue" : "pill amber"}>{plan.status === "published" ? "Approvati" : hasPublishedPlan ? "Revisione in bozza" : "Bozza non pubblicata"}</span><button className="button" onClick={onEdit} type="button"><Pencil size={16} /> Modifica</button></div>
+        )}
+      </div>
       <div className="source-note"><strong>Proposta mock dichiarata.</strong> Mostra come in futuro verranno considerati quadro clinico, informazioni iniziali e feedback. La logica clinica di generazione non è ancora implementata.</div>
       <div className="plan-input-summary">
         <span><strong>Quadro clinico</strong> dolore 2–4/10, flessione 82°, lieve versamento</span>
@@ -561,17 +698,76 @@ function WeeklyExercisesPanel({
         <span><strong>Feedback precedenti</strong> nessuno: primo piano del percorso</span>
       </div>
       <div className="plan-exercise-editor-list">
-        {draft.exercises.map((exercise, index) => (
+        {visiblePlan.exercises.map((exercise, index) => (
           <article className="plan-exercise-editor" key={exercise.id}>
             <div><span className="pill">{index + 1}</span><h3>{exercise.name}</h3></div>
-            <div className="dosage-grid">
-              <div className="field"><label htmlFor={`sets-${exercise.id}`}>Serie</label><input disabled={published} id={`sets-${exercise.id}`} min={1} onChange={(event) => onExerciseChange(index, "sets", event.target.value)} type="number" value={exercise.sets} /></div>
-              <div className="field"><label htmlFor={`reps-${exercise.id}`}>Ripetizioni</label><input disabled={published} id={`reps-${exercise.id}`} min={1} onChange={(event) => onExerciseChange(index, "reps", event.target.value)} type="number" value={exercise.reps} /></div>
-              <div className="field wide"><label htmlFor={`instructions-${exercise.id}`}>Istruzioni</label><textarea disabled={published} id={`instructions-${exercise.id}`} onChange={(event) => onExerciseChange(index, "instructions", event.target.value)} value={exercise.instructions} /></div>
-            </div>
+            {editing ? <ExerciseFields exercise={exercise} index={index} onExerciseChange={onExerciseChange} /> : <div className="exercise-read-grid"><div className="read-value"><span>Dosaggio</span><strong>{exercise.sets} serie × {exercise.reps} ripetizioni</strong></div><div className="read-value"><span>Recupero</span><strong>{exercise.restSeconds} secondi</strong></div><div className="read-value wide"><span>Istruzioni</span><p>{exercise.instructions}</p></div></div>}
           </article>
         ))}
       </div>
+    </section>
+  );
+}
+
+function PlanCreationEditor({
+  draft,
+  onCancel,
+  onExerciseChange,
+  onSave,
+  onUpdate
+}: {
+  draft: MeniscusPlan;
+  onCancel: () => void;
+  onExerciseChange: (index: number, field: "sets" | "reps" | "instructions", value: string) => void;
+  onSave: () => void;
+  onUpdate: (plan: MeniscusPlan) => void;
+}) {
+  return (
+    <section className="panel plan-editor-panel plan-creation-editor">
+      <div className="panel-header">
+        <div><p className="eyebrow">Nuovo piano RE.HAB</p><h2>Crea il primo piano</h2><p className="muted">Rivedi i dati precompilati, poi salva la bozza.</p></div>
+        <span className="pill amber">Non visibile al paziente</span>
+      </div>
+      <div className="editor-section-heading"><span>1</span><div><h3>Informazioni del piano</h3><p>Obiettivo clinico e restrizioni da rispettare.</p></div></div>
+      <PlanInfoFields draft={draft} onUpdate={onUpdate} />
+      <div className="editor-section-heading"><span>2</span><div><h3>Esercizi della prima settimana</h3><p>Dosaggio e istruzioni iniziali per il paziente.</p></div></div>
+      <div className="plan-exercise-editor-list">
+        {draft.exercises.map((exercise, index) => (
+          <article className="plan-exercise-editor" key={exercise.id}>
+            <div><span className="pill">{index + 1}</span><h3>{exercise.name}</h3></div>
+            <ExerciseFields exercise={exercise} index={index} onExerciseChange={onExerciseChange} />
+          </article>
+        ))}
+      </div>
+      <div className="editor-actions"><button className="button ghost" onClick={onCancel} type="button">Annulla</button><button className="button primary" onClick={onSave} type="button"><Save size={17} /> Salva bozza</button></div>
+    </section>
+  );
+}
+
+function PlanInfoFields({ draft, onUpdate }: { draft: MeniscusPlan; onUpdate: (plan: MeniscusPlan) => void }) {
+  return (
+    <div className="field-grid">
+      <div className="field"><label htmlFor="plan-phase">Fase iniziale</label><input id="plan-phase" onChange={(event) => onUpdate({ ...draft, phase: event.target.value })} value={draft.phase} /></div>
+      <div className="field"><label htmlFor="plan-objective">Obiettivo del piano</label><input id="plan-objective" onChange={(event) => onUpdate({ ...draft, objective: event.target.value })} value={draft.objective} /></div>
+      <div className="field wide"><label htmlFor="plan-restrictions">Restrizioni approvate (una per riga)</label><textarea id="plan-restrictions" onChange={(event) => onUpdate({ ...draft, restrictions: event.target.value.split("\n") })} value={draft.restrictions.join("\n")} /></div>
+    </div>
+  );
+}
+
+function ExerciseFields({ exercise, index, onExerciseChange }: { exercise: MeniscusPlan["exercises"][number]; index: number; onExerciseChange: (index: number, field: "sets" | "reps" | "instructions", value: string) => void }) {
+  return (
+    <div className="dosage-grid">
+      <div className="field"><label htmlFor={`sets-${exercise.id}`}>Serie</label><input id={`sets-${exercise.id}`} min={1} onChange={(event) => onExerciseChange(index, "sets", event.target.value)} type="number" value={exercise.sets} /></div>
+      <div className="field"><label htmlFor={`reps-${exercise.id}`}>Ripetizioni</label><input id={`reps-${exercise.id}`} min={1} onChange={(event) => onExerciseChange(index, "reps", event.target.value)} type="number" value={exercise.reps} /></div>
+      <div className="field wide"><label htmlFor={`instructions-${exercise.id}`}>Istruzioni</label><textarea id={`instructions-${exercise.id}`} onChange={(event) => onExerciseChange(index, "instructions", event.target.value)} value={exercise.instructions} /></div>
+    </div>
+  );
+}
+
+function PlanEmptyState({ description, onCreate, title }: { description: string; onCreate: () => void; title: string }) {
+  return (
+    <section className="panel plan-empty-panel">
+      <div className="empty-state"><span className="empty-state-icon"><ClipboardList size={26} /></span><strong>{title}</strong><span>{description}</span><button className="button primary" onClick={onCreate} type="button"><Plus size={18} /> Crea piano</button></div>
     </section>
   );
 }
