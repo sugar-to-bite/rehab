@@ -15,10 +15,11 @@ import {
   Save,
   ShieldCheck,
   Stethoscope,
-  UserRound
+  UserRound,
+  X
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   MENISCUS_DEMO_STORAGE_KEY,
   initialMeniscusDemoState,
@@ -152,6 +153,7 @@ export function MeniscusMvpDemo() {
   const [clinicalEditing, setClinicalEditing] = useState(false);
   const [planDraft, setPlanDraft] = useState<MeniscusPlan>(state.plan);
   const [planEditorMode, setPlanEditorMode] = useState<PlanEditorMode>("closed");
+  const planActionTriggerRef = useRef<HTMLElement | null>(null);
   const [approvalChecked, setApprovalChecked] = useState(false);
   const [exerciseFeedbacks, setExerciseFeedbacks] = useState<MeniscusExerciseFeedback[]>(
     () => buildExerciseFeedbacks(state.plan)
@@ -243,6 +245,7 @@ export function MeniscusMvpDemo() {
   }
 
   function startPlanCreation() {
+    planActionTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setPlanDraft(clonePlan(meniscusPlanTemplate));
     setPlanEditorMode("create");
     setApprovalChecked(false);
@@ -255,12 +258,17 @@ export function MeniscusMvpDemo() {
   }
 
   function cancelPlanEdit() {
+    const shouldRestoreFocus = planEditorMode === "create";
     setPlanDraft(clonePlan(state.plan));
     setPlanEditorMode("closed");
+    if (shouldRestoreFocus) {
+      window.requestAnimationFrame(() => planActionTriggerRef.current?.focus());
+    }
   }
 
   function savePlanDraft() {
     const creating = state.plan.status === "empty";
+    const shouldRestoreFocus = planEditorMode === "create";
     const nextPlan: MeniscusPlan = {
       ...planDraft,
       status: "draft",
@@ -289,6 +297,9 @@ export function MeniscusMvpDemo() {
     setPlanEditorMode("closed");
     setApprovalChecked(false);
     setMessage("Bozza salvata. Il piano non è ancora visibile al paziente.");
+    if (shouldRestoreFocus) {
+      window.requestAnimationFrame(() => planActionTriggerRef.current?.focus());
+    }
   }
 
   function publishPlanRevision() {
@@ -438,7 +449,7 @@ export function MeniscusMvpDemo() {
 
             <div className="demo-main">
               {planEditorMode === "create" ? (
-                <PlanCreationEditor
+                <PlanCreationDialog
                   draft={planDraft}
                   onCancel={cancelPlanEdit}
                   onExerciseChange={updatePlanExercise}
@@ -446,7 +457,7 @@ export function MeniscusMvpDemo() {
                   onUpdate={setPlanDraft}
                 />
               ) : null}
-              {planEditorMode !== "create" && therapistSection === "clinical" ? (
+              {therapistSection === "clinical" ? (
                 <ClinicalRecordPanel
                   draft={clinicalDraft}
                   editing={clinicalEditing}
@@ -456,7 +467,7 @@ export function MeniscusMvpDemo() {
                   onSave={saveClinicalRecord}
                 />
               ) : null}
-              {planEditorMode !== "create" && therapistSection === "planInfo" ? (
+              {therapistSection === "planInfo" ? (
                 <PlanInfoPanel
                   approvalChecked={approvalChecked}
                   draft={planDraft}
@@ -472,7 +483,7 @@ export function MeniscusMvpDemo() {
                   plan={state.plan}
                 />
               ) : null}
-              {planEditorMode !== "create" && therapistSection === "weekly" ? (
+              {therapistSection === "weekly" ? (
                 <WeeklyExercisesPanel
                   draft={planDraft}
                   editing={planEditorMode === "weekly"}
@@ -485,9 +496,9 @@ export function MeniscusMvpDemo() {
                   plan={state.plan}
                 />
               ) : null}
-              {planEditorMode !== "create" && therapistSection === "progress" ? <ProgressPanel /> : null}
-              {planEditorMode !== "create" && therapistSection === "history" ? <PlanHistoryPanel entries={state.planLog} /> : null}
-              {planEditorMode !== "create" && therapistSection === "feedback" ? (
+              {therapistSection === "progress" ? <ProgressPanel /> : null}
+              {therapistSection === "history" ? <PlanHistoryPanel entries={state.planLog} /> : null}
+              {therapistSection === "feedback" ? (
                 <TherapistFeedbackPanel feedbacks={state.feedbacks} />
               ) : null}
             </div>
@@ -709,7 +720,7 @@ function WeeklyExercisesPanel({
   );
 }
 
-function PlanCreationEditor({
+function PlanCreationDialog({
   draft,
   onCancel,
   onExerciseChange,
@@ -722,25 +733,39 @@ function PlanCreationEditor({
   onSave: () => void;
   onUpdate: (plan: MeniscusPlan) => void;
 }) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    dialog.showModal();
+    dialog.querySelector<HTMLInputElement>("input")?.focus();
+
+    return () => dialog.close();
+  }, []);
+
   return (
-    <section className="panel plan-editor-panel plan-creation-editor">
-      <div className="panel-header">
-        <div><p className="eyebrow">Nuovo piano RE.HAB</p><h2>Crea il primo piano</h2><p className="muted">Rivedi i dati precompilati, poi salva la bozza.</p></div>
-        <span className="pill amber">Non visibile al paziente</span>
-      </div>
-      <div className="editor-section-heading"><span>1</span><div><h3>Informazioni del piano</h3><p>Obiettivo clinico e restrizioni da rispettare.</p></div></div>
-      <PlanInfoFields draft={draft} onUpdate={onUpdate} />
-      <div className="editor-section-heading"><span>2</span><div><h3>Esercizi della prima settimana</h3><p>Dosaggio e istruzioni iniziali per il paziente.</p></div></div>
-      <div className="plan-exercise-editor-list">
-        {draft.exercises.map((exercise, index) => (
-          <article className="plan-exercise-editor" key={exercise.id}>
-            <div><span className="pill">{index + 1}</span><h3>{exercise.name}</h3></div>
-            <ExerciseFields exercise={exercise} index={index} onExerciseChange={onExerciseChange} />
-          </article>
-        ))}
-      </div>
-      <div className="editor-actions"><button className="button ghost" onClick={onCancel} type="button">Annulla</button><button className="button primary" onClick={onSave} type="button"><Save size={17} /> Salva bozza</button></div>
-    </section>
+    <dialog aria-labelledby="create-plan-title" className="plan-creation-dialog" onCancel={(event) => { event.preventDefault(); onCancel(); }} ref={dialogRef}>
+      <section className="plan-creation-editor">
+        <div className="panel-header">
+          <div><p className="eyebrow">Nuovo piano RE.HAB</p><h2 id="create-plan-title">Crea il primo piano</h2><p className="muted">Rivedi i dati precompilati, poi salva la bozza.</p></div>
+          <div className="actions compact"><span className="pill amber">Non visibile al paziente</span><button aria-label="Chiudi creazione piano" className="icon-button" onClick={onCancel} type="button"><X size={20} /></button></div>
+        </div>
+        <div className="editor-section-heading"><span>1</span><div><h3>Informazioni del piano</h3><p>Obiettivo clinico e restrizioni da rispettare.</p></div></div>
+        <PlanInfoFields draft={draft} onUpdate={onUpdate} />
+        <div className="editor-section-heading"><span>2</span><div><h3>Esercizi della prima settimana</h3><p>Dosaggio e istruzioni iniziali per il paziente.</p></div></div>
+        <div className="plan-exercise-editor-list">
+          {draft.exercises.map((exercise, index) => (
+            <article className="plan-exercise-editor" key={exercise.id}>
+              <div><span className="pill">{index + 1}</span><h3>{exercise.name}</h3></div>
+              <ExerciseFields exercise={exercise} index={index} onExerciseChange={onExerciseChange} />
+            </article>
+          ))}
+        </div>
+        <div className="editor-actions"><button className="button ghost" onClick={onCancel} type="button">Annulla</button><button className="button primary" onClick={onSave} type="button"><Save size={17} /> Salva bozza</button></div>
+      </section>
+    </dialog>
   );
 }
 

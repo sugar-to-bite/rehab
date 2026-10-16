@@ -33,7 +33,7 @@ Ogni contenuto modificabile deve rendere visibile il proprio stato:
 ## Creazione e pubblicazione dei piani
 
 1. In assenza di piano, mostrare `Crea piano` nelle sezioni pertinenti.
-2. La creazione apre un editor dedicato con informazioni del piano ed esercizi della prima settimana.
+2. La creazione apre un popup modale dedicato con informazioni del piano ed esercizi della prima settimana, mantenendo visibile il contesto sottostante.
 3. I valori suggeriti o dimostrativi possono essere precompilati, ma devono restare modificabili e dichiarati.
 4. `Salva bozza` porta alle viste read-only senza rendere il piano visibile al paziente.
 5. `Approva e pubblica` richiede una conferma esplicita di avvenuta verifica clinica.
@@ -46,6 +46,17 @@ Ogni contenuto modificabile deve rendere visibile il proprio stato:
 - **Terziaria**: stile ghost, per esempio `Annulla`.
 - Le azioni di salvataggio negli editor lunghi restano visibili in una barra inferiore sticky.
 - Le azioni distruttive richiedono stile e conferma dedicati; non riutilizzare il colore primario.
+
+## Popup e azioni contestuali
+
+- Le azioni contestuali che avviano un flusso composto o multi-sezione, come `Crea piano`, aprono un popup modale senza sostituire la pagina di provenienza.
+- Le modifiche brevi e circoscritte possono restare inline quando il contesto è già completamente visibile.
+- Navigazione, cambio tab e consultazione non aprono popup.
+- Il popup contiene titolo esplicito, contesto, azione primaria, `Annulla` e comando di chiusura.
+- `Esc`, `Annulla` e chiusura tramite icona hanno lo stesso effetto e non salvano modifiche.
+- Durante l'apertura il focus entra nel popup, resta confinato al suo interno e torna all'azione di origine alla chiusura.
+- Lo sfondo viene oscurato e non è interagibile; il contenuto del popup può scorrere indipendentemente.
+- Evitare popup per semplici messaggi di successo: usare feedback inline o toast non bloccanti.
 
 ## Struttura visiva
 

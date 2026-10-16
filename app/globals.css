@@ -560,8 +560,42 @@ p {
   margin: 0;
 }
 
+.plan-creation-dialog {
+  width: min(960px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+  padding: 0;
+  color: var(--ink);
+  box-shadow: 0 24px 80px rgba(20, 54, 58, 0.24);
+}
+
+.plan-creation-dialog::backdrop {
+  background: rgba(15, 35, 39, 0.56);
+  backdrop-filter: blur(3px);
+}
+
 .plan-creation-editor {
+  display: grid;
   gap: 20px;
+  padding: 24px;
+}
+
+.icon-button {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  place-items: center;
+}
+
+.icon-button:hover {
+  border-color: var(--teal);
 }
 
 .editor-section-heading {
@@ -881,5 +915,18 @@ p {
 
   .week-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .plan-creation-dialog {
+    width: calc(100% - 16px);
+    max-height: calc(100dvh - 16px);
+  }
+
+  .plan-creation-editor {
+    padding: 18px;
+  }
+
+  .editor-actions {
+    flex-direction: column-reverse;
   }
 }
